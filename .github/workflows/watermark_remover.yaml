@@ -1,7 +1,9 @@
 name: Video Watermark Remover  # 任务名字
 on: 
   # push:                        # 触发条件：当你 push 代码时
-  workflow_dispatch:           # 触发条件：允许你在 GitHub 网页上点按钮手动触发
+  workflow_dispatch:      # 保留这个，方便你偶尔在网页上手动点
+  repository_dispatch:     # 增加这个，接收来自 Python API 的请求
+    types: [start_processing]  # 必须匹配你 Python data 里的 event_type
 
 jobs:
   remove-watermark:            # Job 名字
