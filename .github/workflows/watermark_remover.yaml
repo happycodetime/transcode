@@ -1,9 +1,7 @@
 name: Video Watermark Remover  # 任务名字
 on: 
   # push:                        # 触发条件：当你 push 代码时
-  workflow_dispatch:      # 保留这个，方便你偶尔在网页上手动点
-  repository_dispatch:     # 增加这个，接收来自 Python API 的请求
-    types: [start_processing]  # 必须匹配你 Python data 里的 event_type
+  workflow_dispatch:           # 触发条件：允许你在 GitHub 网页上点按钮手动触发
 
 jobs:
   remove-watermark:            # Job 名字
@@ -27,10 +25,12 @@ jobs:
           RN_SJC_01_SSH_KEY: ${{ secrets.RN_SJC_01_SSH_KEY }}
           RN_SJC_02_IP: ${{ secrets.RN_SJC_02_IP }}
           RN_SJC_02_SSH_KEY: ${{ secrets.RN_SJC_02_SSH_KEY }}
+          FILE_NAME: ${{ github.event.client_payload.file_name }}
         run: |
 
           # --- Step 0: Prepare Environment ---
-          FILE_NAME="${{ github.event.client_payload.file_name }}"
+          set +x
+          echo "::add-mask::${FILE_NAME}"
           HOST_NAME="${{ github.event.client_payload.host_name }}"
 
           if [ "${HOST_NAME}" == "rn-sjc-02" ]; then
@@ -44,14 +44,19 @@ jobs:
             exit 1
           fi
           chmod 600 id_ed25519
+          set -x
+          echo "Step 0 (Prepare Environment) is done"
 
 
           # --- Step 1: Fetch Video from VPS ---
+          set +x
           rsync -avP --remove-source-files -e "ssh -i id_ed25519 -o StrictHostKeyChecking=no" \
             ${USER_NAME}@${VPS_IP}:pending/"${FILE_NAME}" ./"${FILE_NAME}"
-
+          set -x
+          echo "Step 1 (Fetch Video from VPS) is done"
 
           # --- Step 2: Process Transcode ---
+          set +x
           ffmpeg -y -i ./${FILE_NAME} \
             -filter:v:0 "delogo=x=18:y=15:w=63:h=17:show=0" \
             -map 0:v:0 -map 0:a:0? -map 0:v:1? \
@@ -59,22 +64,31 @@ jobs:
             -c:a copy \
             -c:v:1 copy -disposition:v:1 attached_pic \
             output.mp4
+          set -x
+          echo "Step 2 (Process Transcode) is done"
 
 
           # --- Step 3: Rename Video ---
+          set +x
           HEIGHT=$(ffprobe -v error -select_streams v:0 -show_entries stream=height -of default=noprint_wrappers=1:nokey=1 output.mp4)
           CODEC=$(ffprobe -v error -select_streams v:0 -show_entries stream=codec_name -of default=noprint_wrappers=1:nokey=1 output.mp4)
           SIZE_BYTE=$(ffprobe -v error -show_entries format=size -of default=noprint_wrappers=1:nokey=1 output.mp4)
           SIZE_MB=$(( $SIZE_BYTE / 1024 / 1024 ))
 
           FMT_NAME="${FILE_NAME%.*}_${HEIGHT}p_${CODEC^^}_${SIZE_MB}MB.mp4"
+          echo "::add-mask::${FMT_NAME}"
           mv ./output.mp4 ./"${FMT_NAME}"
+          set -x
+          echo "Step 3 (Rename Video) is done"
 
 
           # --- Step 4: Push Video Back ---
+          set +x
           rsync -avP -e "ssh -i id_ed25519 -o StrictHostKeyChecking=no" --inplace --append-verify \
             ./"${FMT_NAME}" ${USER_NAME}@${VPS_IP}:completed/
 
           touch "${FMT_NAME}.done"
           rsync -avP -e "ssh -i id_ed25519 -o StrictHostKeyChecking=no" --inplace --append-verify \
             ./"${FMT_NAME}.done" ${USER_NAME}@${VPS_IP}:completed/
+          set -x
+          echo "Step 4 (Push Video Back) is done"
