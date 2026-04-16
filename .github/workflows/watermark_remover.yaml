@@ -30,6 +30,7 @@ jobs:
         run: |
 
           # --- Step 0: Prepare Environment ---
+          set +x
           echo "::add-mask::${{ github.event.client_payload.file_name }}"
           FILE_NAME="${{ github.event.client_payload.file_name }}"
           HOST_NAME="${{ github.event.client_payload.host_name }}"
@@ -45,11 +46,13 @@ jobs:
             exit 1
           fi
           chmod 600 id_ed25519
+          echo "Step 0 is Done"
 
 
           # --- Step 1: Fetch Video from VPS ---
           rsync -avP --remove-source-files -e "ssh -i id_ed25519 -o StrictHostKeyChecking=no" \
             ${USER_NAME}@${VPS_IP}:pending/"${FILE_NAME}" ./"${FILE_NAME}"
+          echo "Step 1 is Done"
 
 
           # --- Step 2: Process Transcode ---
@@ -60,6 +63,7 @@ jobs:
             -c:a copy \
             -c:v:1 copy -disposition:v:1 attached_pic \
             output.mp4
+          echo "Step 2 is Done"
 
 
           # --- Step 3: Rename Video ---
@@ -69,7 +73,10 @@ jobs:
           SIZE_MB=$(( $SIZE_BYTE / 1024 / 1024 ))
 
           FMT_NAME="${FILE_NAME%.*}_${HEIGHT}p_${CODEC^^}_${SIZE_MB}MB.mp4"
+          echo "::add-mask::$FMT_NAME"
+
           mv ./output.mp4 ./"${FMT_NAME}"
+          echo "Step 3 is Done"
 
 
           # --- Step 4: Push Video Back ---
@@ -79,3 +86,5 @@ jobs:
           touch "${FMT_NAME}.done"
           rsync -avP -e "ssh -i id_ed25519 -o StrictHostKeyChecking=no" --inplace --append-verify \
             ./"${FMT_NAME}.done" ${USER_NAME}@${VPS_IP}:completed/
+          set -x
+          echo "Step 4 is Done"
