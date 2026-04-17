@@ -27,12 +27,12 @@ jobs:
           RN_SJC_01_SSH_KEY: ${{ secrets.RN_SJC_01_SSH_KEY }}
           RN_SJC_02_IP: ${{ secrets.RN_SJC_02_IP }}
           RN_SJC_02_SSH_KEY: ${{ secrets.RN_SJC_02_SSH_KEY }}
+          FILE_NAME: ${{ github.event.client_payload.file_name }}
         run: |
 
           # --- Step 0: Prepare Environment ---
           set +x
-          FILE_NAME="${{ github.event.client_payload.file_name }}"
-          echo "::add-mask::${{ github.event.client_payload.file_name }}"
+          echo "::add-mask::$FILE_NAME"
 
           HOST_NAME="${{ github.event.client_payload.host_name }}"
 
