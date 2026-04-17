@@ -31,8 +31,9 @@ jobs:
 
           # --- Step 0: Prepare Environment ---
           set +x
-          echo "::add-mask::${{ github.event.client_payload.file_name }}"
           FILE_NAME="${{ github.event.client_payload.file_name }}"
+          echo "::add-mask::${{ github.event.client_payload.file_name }}"
+
           HOST_NAME="${{ github.event.client_payload.host_name }}"
 
           if [ "${HOST_NAME}" == "rn-sjc-02" ]; then
