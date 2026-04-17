@@ -33,6 +33,7 @@ jobs:
           RN_SJC_02_SSH_KEY: ${{ secrets.RN_SJC_02_SSH_KEY }}
           CRYPTO_KEY: ${{ secrets.CRYPTO_KEY }}
           ENCRYPTED_NAME: ${{ github.event.client_payload.encrypted_name }}
+          CODEC_PARAM: ${{ github.event.client_payload.codec_param }}
         run: |
 
           # --- Step 0: Prepare Environment ---
@@ -73,7 +74,7 @@ jobs:
           ffmpeg -y -i ./${FILE_NAME} \
             -filter:v:0 "delogo=x=18:y=15:w=63:h=17:show=0" \
             -map 0:v:0 -map 0:a:0? -map 0:v:1? \
-            -c:v:0 libx264 -preset veryfast -crf 22 \
+            -c:v:0 ${CODEC_PARAM} \
             -c:a copy \
             -c:v:1 copy -disposition:v:1 attached_pic \
             output.mp4
