@@ -13,12 +13,16 @@ jobs:
       # - name: Checkout Code    # 第一步：把你的代码拉取到云端服务器
       #   uses: actions/checkout@v4
 
-      - name: Install Latest FFmpeg
+      - name: Install Dependencies
         run: |
+          # --- Install Latest Ffmpeg ---
           wget -q https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz
           mkdir ffmpeg_latest
           tar -xf ffmpeg-master-latest-linux64-gpl.tar.xz -C ffmpeg_latest --strip-components=1
           echo "$(pwd)/ffmpeg_latest/bin" >> $GITHUB_PATH
+
+          # --- Install Crypto Lib ---
+          pip install cryptography
 
       - name: Transcode Video
         env:
@@ -27,11 +31,20 @@ jobs:
           RN_SJC_01_SSH_KEY: ${{ secrets.RN_SJC_01_SSH_KEY }}
           RN_SJC_02_IP: ${{ secrets.RN_SJC_02_IP }}
           RN_SJC_02_SSH_KEY: ${{ secrets.RN_SJC_02_SSH_KEY }}
-          FILE_NAME: ${{ github.event.client_payload.file_name }}
+          CRYPTO_KEY: ${{ secrets.CRYPTO_KEY }}
+          ENCRYPTED_NAME: ${{ github.event.client_payload.encrypted_name }}
         run: |
 
           # --- Step 0: Prepare Environment ---
           set +x
+
+          FILE_NAME=$(python3 -c "
+          from cryptography.fernet import Fernet
+          import os
+          f = Fernet(os.environ['CRYPTO_KEY'].encode())
+          print(f.decrypt(os.environ['ENCRYPTED_NAME'].encode()).decode())
+                    ")
+
           echo "::add-mask::$FILE_NAME"
 
           HOST_NAME="${{ github.event.client_payload.host_name }}"
